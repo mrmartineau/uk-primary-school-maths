@@ -315,7 +315,10 @@ function ChapterCard({ chapter, open, onToggle }) {
 
 export default function App() {
   const [query, setQuery] = useState('')
-  const [openId, setOpenId] = useState('ch3')
+  const [openId, setOpenId] = useState(() => {
+    const hash = window.location.hash.slice(1)
+    return chapters.some((c) => c.id === hash) ? hash : 'ch3'
+  })
   const [filter, setFilter] = useState('all')
 
   const groups = [
@@ -358,6 +361,12 @@ export default function App() {
                 Explore key maths concepts year by year, understand the ideas
                 behind each topic, and practise with checkable activities.
               </p>
+              <a
+                href="/practice/"
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-pink-500 px-5 py-2.5 font-bold text-white shadow hover:opacity-90"
+              >
+                <Sparkles className="h-4 w-4" /> Maths Quest: practice for kids
+              </a>
             </div>
             <div className="rounded-2xl border border-slate-300 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
               <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">

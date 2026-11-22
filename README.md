@@ -16,6 +16,18 @@ For each topic you get:
 
 Topics span basic number and place value through to fractions, percentages, geometry, statistics, and early algebra. The Year-by-Year guide gives a roadmap of what children typically learn at each stage from Reception to Year 6.
 
+## Maths Quest (practice for kids)
+
+`/practice/` is a separate, child-facing practice app built with Solid.js. Progress is saved in the browser's local storage.
+
+- **18 topics**, from number bonds to negative numbers, each with 5 levels of randomly generated questions (with hints and worked explanations)
+- **Adaptive levels**: 7 of 8 right first time moves up a level; a run of wrong answers moves down
+- **Modes**: daily challenge, quick mix, pick a topic, times tables (choose which tables), 60-second Beat the Clock, and Fix my mistakes
+- **Spaced repetition**: topics come back for review after 1–7 days depending on accuracy
+- **Weekly points** with an auto goal that rises ~10% on recent weeks, day streaks and badges
+- **Grown-ups area** (behind a times-table question): year group, weekly goal, double-points focus topics, level overrides, backup/restore
+- On-screen keypad and large touch targets for iPad and iPhone; can be added to the home screen
+
 ## Who it's for
 
 Parents and carers who want to support their child's maths without accidentally undermining what the school is teaching. The aim is not to replace the teacher — it's to help you ask better questions and make maths feel less mysterious at home.

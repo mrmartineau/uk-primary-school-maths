@@ -14,7 +14,8 @@
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.11.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "solid-js": "^1.9.20"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
@@ -32,6 +33,7 @@
     "globals": "^17.5.0",
     "tailwindcss": "^4.2.4",
     "vite": "^8.0.10",
+    "vite-plugin-solid": "^2.11.17",
     "wrangler": "^4.85.0"
   }
 }
