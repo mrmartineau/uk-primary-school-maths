@@ -22,7 +22,8 @@ Topics span basic number and place value through to fractions, percentages, geom
 
 - **18 topics**, from number bonds to negative numbers, each with 5 levels of randomly generated questions (with hints and worked explanations)
 - **Adaptive levels**: 7 of 8 right first time moves up a level; a run of wrong answers moves down
-- **Modes**: daily challenge, quick mix, pick a topic, times tables (choose which tables), 60-second Beat the Clock, and Fix my mistakes
+- **Modes**: daily challenge, quick mix, pick a topic, times tables (choose which tables), 60-second Beat the Clock, Fix my mistakes, and Stretch it
+- **Stretch it**: simple facts from earlier years made bigger or smaller (×10, ×100, ×1000, tenths, hundredths), e.g. 3 + 7 = 10 → 300 + 700 = 1000 → 0.3 + 0.7 = 1. Also mixed into quick mix and the daily challenge for older children
 - **Spaced repetition**: topics come back for review after 1–7 days depending on accuracy
 - **Weekly points** with an auto goal that rises ~10% on recent weeks, day streaks and badges
 - **Grown-ups area** (behind a times-table question): year group, weekly goal, double-points focus topics, level overrides, backup/restore

@@ -187,7 +187,7 @@ export function Modal(props) {
   return (
     <Show when={props.open}>
       <div class="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-3 sm:items-center" onClick={() => props.onClose?.()}>
-        <div class="slide-up safe-bottom w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl dark:bg-violet-950" onClick={(e) => e.stopPropagation()}>
+        <div class="slide-up safe-bottom max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl dark:bg-violet-950" onClick={(e) => e.stopPropagation()}>
           {props.children}
         </div>
       </div>

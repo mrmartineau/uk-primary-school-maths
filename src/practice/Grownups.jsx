@@ -134,6 +134,10 @@ export function Grownups(props) {
             <input type="checkbox" class="h-5 w-5 accent-violet-600" checked={state.profile.sound} onChange={(e) => setState('profile', 'sound', e.currentTarget.checked)} />
             Sound effects
           </label>
+          <label class="mt-2 flex items-center gap-3 font-semibold">
+            <input type="checkbox" class="h-5 w-5 accent-violet-600" checked={state.profile.stretch !== false} onChange={(e) => setState('profile', 'stretch', e.currentTarget.checked)} />
+            Mix “stretch” questions into quick mix and daily challenge (easy facts with bigger numbers or decimals, e.g. 300 + 700 = 1000)
+          </label>
         </Card>
 
         <Card>

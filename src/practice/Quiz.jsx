@@ -1,6 +1,6 @@
 import { For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
 import { Bar, BigButton, Clock, Confetti, Keypad, Polygon, useBurst } from './components'
-import { checkAnswer, TOPIC_BY_ID } from './questions'
+import { checkAnswer, scaleLabel, TOPIC_BY_ID } from './questions'
 import { buildQuestions, nextQuestion, pointsFor } from './session'
 import { recordAnswer } from './store'
 import { sfx } from './sound'
@@ -139,7 +139,7 @@ export default function Quiz(props) {
             class={`relative flex flex-1 flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl bg-gradient-to-br p-4 pt-9 text-center sm:gap-3 sm:p-5 sm:pt-10 text-white shadow-lg ${topic().color}`}
           >
             <div class="absolute left-4 top-3 flex items-center gap-2 text-sm font-bold opacity-90">
-              <span>{topic().emoji}</span> {topic().name} · L{q().level}
+              <span>{topic().emoji}</span> {topic().name} · {q().stretch ? `💪 Stretch ${scaleLabel(q().stretch)}` : `L${q().level}`}
             </div>
             <Show when={isBlitz}>
               <div class="absolute right-4 top-3 text-sm font-black">✅ {stats.correct}</div>

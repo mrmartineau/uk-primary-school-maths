@@ -596,8 +596,77 @@ export const TOPICS = [
 
 export const TOPIC_BY_ID = Object.fromEntries(TOPICS.map((t) => [t.id, t]))
 
+// ---------------------------------------------------------------------------
+// Stretch: take a simple fact from an earlier year and scale it up or down.
+// "3 + 7 = 10" becomes "300 + 700 = 1000" or "0.3 + 0.7 = 1".
+
+export const STRETCHABLE = ['bonds', 'add', 'sub', 'doubles', 'tables', 'div', 'missing', 'patterns']
+export const STRETCH_SCALES = [10, 100, 1000, 0.1, 0.01]
+export const scaleLabel = (s) => (s === 0.1 ? 'tenths' : s === 0.01 ? 'hundredths' : `×${s}`)
+// Rough difficulty so stretch questions earn sensible points
+const STRETCH_LEVEL = { 10: 3, 100: 4, 1000: 5, 0.1: 4, 0.01: 5 }
+
+function stretchQ(topicId, r, s) {
+  const sc = (n) => fix(n * s, 4)
+  // text version: 12500 → 12,500 so big numbers are easy to read
+  const t = (n) => (Math.abs(n * s) >= 10000 ? Number(sc(n)).toLocaleString('en-GB') : sc(n))
+  const bigger = s >= 1 ? `${s} times bigger` : s === 0.1 ? 'ten times smaller (tenths)' : 'a hundred times smaller (hundredths)'
+  const how = `Do the easy fact, then make it ${bigger}.`
+  const extra = s < 1 ? { keys: ['.'] } : {}
+  const q = (text, answer, hint, explain) => num(text, answer, hint, explain, extra)
+
+  if (topicId === 'bonds') {
+    // tenths make 1 from bonds to 10; hundredths make 1 from bonds to 100;
+    // bigger scales mix both (eg 340 + 660 = 1000)
+    const total = s === 0.01 ? 100 : s === 0.1 ? pick(r, [10, 10, 20]) : pick(r, [10, 10, 20, 100, 100])
+    const a = total === 100 ? int(r, 1, 19) * 5 + (r() < 0.5 ? 0 : int(r, 1, 4)) : int(r, 1, total - 1)
+    return r() < 0.6
+      ? q(`${t(a)} + ? = ${t(total)}`, sc(total - a), `Think: ${a} + ? = ${total}. ${how}`, `${a} + ${total - a} = ${total}, so ${sc(a)} + ${sc(total - a)} = ${sc(total)}`)
+      : q(`${t(total)} − ${t(a)} = ?`, sc(total - a), `Think: ${total} − ${a}. ${how}`, `${total} − ${a} = ${total - a}, so ${sc(total)} − ${sc(a)} = ${sc(total - a)}`)
+  }
+  if (topicId === 'add') {
+    const a = int(r, 2, 9), b = int(r, 2, 9)
+    return q(`${t(a)} + ${t(b)} = ?`, sc(a + b), `Use ${a} + ${b} to help. ${how}`, `${a} + ${b} = ${a + b}, so ${sc(a)} + ${sc(b)} = ${sc(a + b)}`)
+  }
+  if (topicId === 'sub') {
+    const a = int(r, 6, 18), b = int(r, 2, Math.min(9, a - 1))
+    return q(`${t(a)} − ${t(b)} = ?`, sc(a - b), `Use ${a} − ${b} to help. ${how}`, `${a} − ${b} = ${a - b}, so ${sc(a)} − ${sc(b)} = ${sc(a - b)}`)
+  }
+  if (topicId === 'doubles') {
+    const n = int(r, 2, s >= 100 ? 25 : 50)
+    return r() < 0.5
+      ? q(`Double ${t(n)} = ?`, sc(n * 2), `Double ${n} first. ${how}`, `Double ${n} is ${n * 2}, so double ${sc(n)} is ${sc(n * 2)}`)
+      : q(`Half of ${t(n * 2)} = ?`, sc(n), `Halve ${n * 2} first. ${how}`, `Half of ${n * 2} is ${n}, so half of ${sc(n * 2)} is ${sc(n)}`)
+  }
+  if (topicId === 'tables') {
+    const a = int(r, 2, 12), b = int(r, 2, 12)
+    if (s >= 100 && r() < 0.4) {
+      // split the scale across both numbers: 30 × 40, 300 × 40…
+      const s1 = 10, s2 = s / 10
+      return q(`${a * s1} × ${(b * s2).toLocaleString('en-GB')} = ?`, a * b * s, `Do ${a} × ${b}, then count the zeros and put them back.`, `${a} × ${b} = ${a * b}, then add the zeros: ${a * b * s}`)
+    }
+    return q(`${t(a)} × ${b} = ?`, sc(a * b), `Use ${a} × ${b}. ${how}`, `${a} × ${b} = ${a * b}, so ${sc(a)} × ${b} = ${sc(a * b)}`)
+  }
+  if (topicId === 'div') {
+    const a = int(r, 2, 12), b = int(r, 2, 9)
+    return q(`${t(a * b)} ÷ ${b} = ?`, sc(a), `Use your ${b} times table: what × ${b} = ${a * b}? ${how}`, `${a * b} ÷ ${b} = ${a}, so ${sc(a * b)} ÷ ${b} = ${sc(a)}`)
+  }
+  if (topicId === 'missing') {
+    const a = int(r, 2, 9), b = int(r, 2, 9)
+    return q(`? + ${t(a)} = ${t(a + b)}`, sc(b), `Think: ? + ${a} = ${a + b}. ${how}`, `${b} + ${a} = ${a + b}, so ${sc(b)} + ${sc(a)} = ${sc(a + b)}`)
+  }
+  // patterns
+  const step = pick(r, [2, 3, 4, 5, 25])
+  const start = step * int(r, 1, 6)
+  const seq = [0, 1, 2, 3].map((i) => t(start + i * step))
+  return q(`${seq.join(', ')}, ?`, sc(start + 4 * step), `Find the gap. Easy version: ${start}, ${start + step}, ${start + 2 * step}… ${how}`, `Each step is ${sc(step)}, so next is ${sc(start + 4 * step)}`)
+}
+
 export function makeQuestion(topicId, level, r = Math.random, opts = {}) {
   const topic = TOPIC_BY_ID[topicId]
+  if (opts.scale && STRETCHABLE.includes(topicId)) {
+    return { ...stretchQ(topicId, r, opts.scale), topic: topicId, level: STRETCH_LEVEL[opts.scale] || 4, stretch: opts.scale, practiceLevel: true }
+  }
   const lv = Math.max(1, Math.min(5, level))
   // A few generators retry on unlucky numbers; guard against odd results.
   for (let i = 0; i < 20; i++) {

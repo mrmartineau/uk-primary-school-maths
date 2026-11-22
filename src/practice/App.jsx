@@ -2,12 +2,12 @@ import { For, Match, Show, Switch, createSignal, onCleanup, onMount } from 'soli
 import { Bar, BigButton, Card, Chip, Confetti, Modal, Stars } from './components'
 import Quiz from './Quiz'
 import { Grownups, Setup } from './Grownups'
-import { TOPICS, TOPIC_BY_ID } from './questions'
+import { STRETCH_SCALES, TOPICS, TOPIC_BY_ID } from './questions'
 import {
   BADGES, addBonus, checkBadges, dayKey, dayStreak, dueTopics, pastWeeks, recordSession, state,
   topicAccuracy, topicLevel, topicStars, totalPoints, visibleTopics, weakTopics, weekDays, weekTotals, weeklyGoal,
 } from './store'
-import { POINTS, blitz, dailyChallenge, mistakesSession, quickMix, reviewSession, tablesSession, topicSession } from './session'
+import { POINTS, STRETCHABLE, scaleLabel, stretchScales, stretchSession, blitz, dailyChallenge, mistakesSession, quickMix, reviewSession, tablesSession, topicSession } from './session'
 import { sfx } from './sound'
 
 // --- tiny history-aware router so iOS swipe-back works ----------------------
@@ -44,6 +44,7 @@ export default function App() {
             <Match when={r().name === 'topics'}><Topics /></Match>
             <Match when={r().name === 'tables'}><Tables /></Match>
             <Match when={r().name === 'blitz'}><BlitzSetup /></Match>
+            <Match when={r().name === 'stretch'}><StretchSetup /></Match>
             <Match when={r().name === 'progress'}><Progress /></Match>
             <Match when={r().name === 'badges'}><Badges /></Match>
             <Match when={r().name === 'grownups'}><Grownups onBack={back} /></Match>
@@ -266,7 +267,9 @@ function Home() {
         <Tile emoji="🎯" title="Pick a topic" sub="Choose what to practise" color="from-sky-400 to-blue-600" onClick={() => go('topics')} />
         <Tile emoji="✖️" title="Times tables" sub="Pick your tables" color="from-fuchsia-500 to-purple-600" onClick={() => go('tables')} />
         <Tile emoji="⏱️" title="Beat the clock" sub={state.best.blitz ? `Best: ${state.best.blitz} in 60s` : '60 seconds. Go!'} color="from-rose-400 to-red-600" onClick={() => go('blitz')} />
+        <Tile emoji="💪" title="Stretch it" sub="Easy facts, bigger numbers" color="from-lime-500 to-emerald-600" onClick={() => go('stretch')} />
         <Tile
+          class="sm:col-span-3 sm:min-h-24"
           emoji="🔧"
           title="Fix mistakes"
           sub={state.mistakes.length ? `${state.mistakes.length} to fix` : 'No mistakes saved!'}
@@ -284,6 +287,7 @@ function Topics() {
   const [sel, setSel] = createSignal(null)
   const [count, setCount] = createSignal(10)
   const [level, setLevel] = createSignal(0)
+  const [scale, setScale] = createSignal(0)
   const shown = () => (state.profile.showAll ? TOPICS : visibleTopics())
   return (
     <div class="grid grid-cols-1 gap-4">
@@ -295,7 +299,7 @@ function Topics() {
             return (
               <button
                 type="button"
-                onClick={() => { sfx.tap(); setLevel(0); setSel(t) }}
+                onClick={() => { sfx.tap(); setLevel(0); setScale(0); setSel(t) }}
                 class={`btn-3d relative flex min-h-36 flex-col justify-between rounded-3xl bg-gradient-to-br p-4 text-left text-white ${t.color}`}
               >
                 <span class="text-4xl drop-shadow">{t.emoji}</span>
@@ -336,7 +340,15 @@ function Topics() {
             <For each={[1, 2, 3, 4, 5]}>{(n) => <Chip on={level() === n} onClick={() => setLevel(n)}>{n}</Chip>}</For>
           </div>
           <p class="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Auto moves you up a level when you get 7 out of 8 right.</p>
-          <BigButton class="mt-5 w-full" color="bg-emerald-500" onClick={() => { const t = sel(); setSel(null); start(topicSession(t.id, count(), level())) }}>
+          <Show when={STRETCHABLE.includes(sel().id)}>
+            <p class="mt-4 text-sm font-bold uppercase tracking-wide text-slate-500">Number size 💪</p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <Chip on={!scale()} onClick={() => setScale(0)}>Normal</Chip>
+              <For each={STRETCH_SCALES}>{(sc) => <Chip on={scale() === sc} onClick={() => setScale(sc)}>{scaleLabel(sc)}</Chip>}</For>
+            </div>
+            <p class="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Easy facts made bigger or smaller, like 300 + 700 = 1000 or 0.3 + 0.7 = 1.</p>
+          </Show>
+          <BigButton class="mt-5 w-full" color="bg-emerald-500" onClick={() => { const t = sel(); setSel(null); start(topicSession(t.id, count(), level(), STRETCHABLE.includes(t.id) ? scale() : 0)) }}>
             Let’s go! 🚀
           </BigButton>
         </Show>
@@ -422,6 +434,55 @@ function BlitzSetup() {
       <BigButton class="text-2xl" color="bg-gradient-to-r from-rose-400 to-red-600" onClick={() => start(blitz(sel()))}>
         Ready… go! 🏁
       </BigButton>
+    </div>
+  )
+}
+
+const STRETCH_EXAMPLES = {
+  10: '30 + 70 = 100',
+  100: '300 + 700 = 1000',
+  1000: '6000 × 4 = 24,000',
+  0.1: '0.3 + 0.7 = 1',
+  0.01: '0.25 + 0.75 = 1',
+}
+
+function StretchSetup() {
+  const [topics, setTopics] = createSignal([])
+  const [scales, setScales] = createSignal(stretchScales())
+  const toggle = (get, set, v) => set(get().includes(v) ? get().filter((x) => x !== v) : [...get(), v])
+  return (
+    <div class="grid grid-cols-1 gap-4">
+      <h1 class="text-3xl font-black">Stretch it 💪</h1>
+      <Card>
+        <p class="font-semibold text-slate-600 dark:text-slate-300">
+          Use facts you already know to answer bigger questions. If you know <b>3 + 7 = 10</b>, you also know <b>300 + 700 = 1000</b> and <b>0.3 + 0.7 = 1</b>!
+        </p>
+        <p class="mt-4 font-bold">Number size</p>
+        <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <For each={STRETCH_SCALES}>
+            {(sc) => (
+              <Chip on={scales().includes(sc)} onClick={() => toggle(scales, setScales, sc)} class="flex flex-col items-center rounded-2xl py-2">
+                <span class="text-lg">{scaleLabel(sc)}</span>
+                <span class="text-xs font-semibold opacity-80">{STRETCH_EXAMPLES[sc]}</span>
+              </Chip>
+            )}
+          </For>
+        </div>
+        <p class="mt-4 font-bold">Topics (or leave empty for all)</p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <For each={STRETCHABLE}>
+            {(id) => <Chip on={topics().includes(id)} onClick={() => toggle(topics, setTopics, id)}>{TOPIC_BY_ID[id].emoji} {TOPIC_BY_ID[id].name}</Chip>}
+          </For>
+        </div>
+      </Card>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <BigButton color="bg-gradient-to-r from-lime-500 to-emerald-600" onClick={() => start(stretchSession(topics(), scales()))}>
+          💪 10 stretch questions
+        </BigButton>
+        <BigButton color="bg-gradient-to-r from-rose-400 to-red-500" onClick={() => start({ ...blitz(topics().length ? topics() : STRETCHABLE), mode: 'blitz', scales: scales().length ? scales() : [10], stretchBlitz: true, title: 'Stretch race' })}>
+          ⏱️ 60-second stretch race
+        </BigButton>
+      </div>
     </div>
   )
 }
