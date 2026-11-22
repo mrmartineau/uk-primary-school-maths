@@ -32,6 +32,8 @@ const fresh = () => ({
   badges: {}, // id: ts
   best: { streak: 0, blitz: 0, dailyDone: '' },
   tables: {}, // '7x8': { c, t }
+  rewards: [], // { id, emoji, name, cost }
+  claims: [], // { id, rewardId, emoji, name, cost, ts, given }
 })
 
 function load() {
@@ -171,6 +173,46 @@ export function dayStreak() {
 }
 
 export const totalPoints = () => Object.values(state.days).reduce((a, d) => a + d.points, 0)
+
+// ---- rewards ----------------------------------------------------------------
+/** Points available to spend: everything earned minus rewards already claimed */
+export const spent = () => (state.claims || []).reduce((a, c) => a + c.cost, 0)
+export const balance = () => totalPoints() - spent()
+
+export const REWARD_IDEAS = [
+  ['🎬', 'Film night', 1000],
+  ['🍦', 'Ice cream treat', 500],
+  ['🎮', '30 minutes extra games', 300],
+  ['🍕', 'Choose what’s for dinner', 1500],
+  ['🛝', 'Trip to the park', 600],
+  ['📚', 'A new book', 2000],
+  ['🌙', 'Stay up 15 minutes later', 400],
+  ['🎲', 'Family board game night', 800],
+]
+
+const uid = () => Math.random().toString(36).slice(2, 9)
+
+export function addReward(emoji, name, cost) {
+  setState('rewards', (r) => [...(r || []), { id: uid(), emoji: emoji || '🎁', name, cost: Math.max(1, Math.round(cost)) }])
+}
+export function updateReward(id, patch) {
+  setState('rewards', (r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+}
+export function removeReward(id) {
+  setState('rewards', (r) => r.filter((x) => x.id !== id))
+}
+export function claimReward(id) {
+  const r = state.rewards.find((x) => x.id === id)
+  if (!r || balance() < r.cost) return false
+  setState('claims', (c) => [{ id: uid(), rewardId: r.id, emoji: r.emoji, name: r.name, cost: r.cost, ts: Date.now(), given: false }, ...(c || [])])
+  return true
+}
+export function setClaimGiven(id, given) {
+  setState('claims', (c) => c.map((x) => (x.id === id ? { ...x, given } : x)))
+}
+export function undoClaim(id) {
+  setState('claims', (c) => c.filter((x) => x.id !== id))
+}
 
 // ---- mutations ------------------------------------------------------------
 

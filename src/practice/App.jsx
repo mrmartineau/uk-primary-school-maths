@@ -2,9 +2,10 @@ import { For, Match, Show, Switch, createSignal, onCleanup, onMount } from 'soli
 import { Bar, BigButton, Card, Chip, Confetti, Modal, Stars } from './components'
 import Quiz from './Quiz'
 import { Grownups, Setup } from './Grownups'
+import { Toolbox } from './Tools'
 import { STRETCH_SCALES, TOPICS, TOPIC_BY_ID } from './questions'
 import {
-  BADGES, addBonus, checkBadges, dayKey, dayStreak, dueTopics, pastWeeks, recordSession, state,
+  BADGES, addBonus, balance, checkBadges, claimReward, dayKey, dayStreak, dueTopics, pastWeeks, recordSession, state,
   topicAccuracy, topicLevel, topicStars, totalPoints, visibleTopics, weakTopics, weekDays, weekTotals, weeklyGoal,
 } from './store'
 import { POINTS, STRETCHABLE, scaleLabel, stretchScales, stretchSession, blitz, dailyChallenge, mistakesSession, quickMix, reviewSession, tablesSession, topicSession } from './session'
@@ -47,6 +48,8 @@ export default function App() {
             <Match when={r().name === 'stretch'}><StretchSetup /></Match>
             <Match when={r().name === 'progress'}><Progress /></Match>
             <Match when={r().name === 'badges'}><Badges /></Match>
+            <Match when={r().name === 'rewards'}><Rewards /></Match>
+            <Match when={r().name === 'tools'}><ToolsScreen /></Match>
             <Match when={r().name === 'grownups'}><Grownups onBack={back} /></Match>
             <Match when={r().name === 'quiz'}>
               <Show keyed when={r().params.config}>
@@ -130,12 +133,13 @@ function BottomNav() {
   const items = [
     ['home', '🏠', 'Play'],
     ['progress', '📈', 'Progress'],
+    ['rewards', '🎁', 'Rewards'],
     ['badges', '🏅', 'Badges'],
     ['grownups', '👪', 'Grown-ups'],
   ]
   return (
     <nav class="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-black/5 bg-white/85 pt-2 backdrop-blur-md dark:border-white/10 dark:bg-violet-950/85">
-      <div class="mx-auto grid max-w-md grid-cols-4 px-2">
+      <div class="mx-auto grid max-w-lg grid-cols-5 px-1">
         <For each={items}>
           {([name, icon, label]) => (
             <button
@@ -227,6 +231,8 @@ function Home() {
         {hello}{state.profile.name ? `, ${state.profile.name}` : ''}! 👋
       </h1>
 
+      <RewardCard />
+
       <div class="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
         <WeekCard />
         <Card>
@@ -268,8 +274,9 @@ function Home() {
         <Tile emoji="✖️" title="Times tables" sub="Pick your tables" color="from-fuchsia-500 to-purple-600" onClick={() => go('tables')} />
         <Tile emoji="⏱️" title="Beat the clock" sub={state.best.blitz ? `Best: ${state.best.blitz} in 60s` : '60 seconds. Go!'} color="from-rose-400 to-red-600" onClick={() => go('blitz')} />
         <Tile emoji="💪" title="Stretch it" sub="Easy facts, bigger numbers" color="from-lime-500 to-emerald-600" onClick={() => go('stretch')} />
+        <Tile emoji="🧰" title="Tools & tricks" sub="Number line, grids, shortcuts" color="from-amber-400 to-orange-500" onClick={() => go('tools')} />
         <Tile
-          class="sm:col-span-3 sm:min-h-24"
+          class="col-span-2 sm:col-span-2"
           emoji="🔧"
           title="Fix mistakes"
           sub={state.mistakes.length ? `${state.mistakes.length} to fix` : 'No mistakes saved!'}
@@ -644,6 +651,140 @@ function Progress() {
             </For>
           </ul>
         </Show>
+      </Card>
+    </div>
+  )
+}
+
+function RewardCard() {
+  const rewards = () => [...(state.rewards || [])].sort((a, b) => a.cost - b.cost)
+  const next = () => rewards().find((r) => r.cost > balance()) || rewards()[rewards().length - 1]
+  const ready = () => rewards().filter((r) => r.cost <= balance())
+  return (
+    <Show when={rewards().length}>
+      <button type="button" onClick={() => go('rewards')} class="btn-3d flex items-center gap-3 rounded-3xl bg-gradient-to-r from-amber-300 to-pink-400 p-4 text-left text-amber-950">
+        <span class={`text-4xl ${ready().length ? 'wiggle' : ''}`}>{ready().length ? '🎁' : next().emoji}</span>
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm font-black uppercase tracking-wide opacity-80">{ready().length ? 'Reward ready!' : 'Saving up for'}</span>
+          <span class="block truncate text-lg font-black">
+            {ready().length ? `You can get ${ready()[ready().length - 1].emoji} ${ready()[ready().length - 1].name}!` : `${next().emoji} ${next().name}`}
+          </span>
+          <Show when={!ready().length}>
+            <Bar class="mt-1 h-3 bg-white/50" color="bg-white" value={balance() / next().cost} />
+            <span class="mt-0.5 block text-xs font-bold">{balance()} / {next().cost} points</span>
+          </Show>
+        </span>
+      </button>
+    </Show>
+  )
+}
+
+function Rewards() {
+  const [confirm, setConfirm] = createSignal(null)
+  const [party, setParty] = createSignal(0)
+  const rewards = () => [...(state.rewards || [])].sort((a, b) => a.cost - b.cost)
+  return (
+    <div class="grid grid-cols-1 gap-4">
+      <h1 class="text-3xl font-black">Rewards 🎁</h1>
+      <Card class="text-center">
+        <p class="text-sm font-bold uppercase tracking-wide text-violet-500 dark:text-violet-300">Points to spend</p>
+        <p class="text-5xl font-black">⭐ {balance()}</p>
+        <p class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Spending points doesn’t change your weekly score or badges.</p>
+      </Card>
+      <Show
+        when={rewards().length}
+        fallback={<Card><p class="font-semibold">No rewards yet. Ask a grown-up to add some in 👪 Grown-ups, like “1000 points = film night”.</p></Card>}
+      >
+        <div class="grid gap-3 sm:grid-cols-2">
+          <For each={rewards()}>
+            {(r) => {
+              const can = () => balance() >= r.cost
+              return (
+                <Card class={can() ? 'ring-4 ring-amber-300' : ''}>
+                  <div class="flex items-center gap-3">
+                    <span class={`text-5xl ${can() ? 'wiggle' : ''}`}>{r.emoji}</span>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-lg font-black">{r.name}</p>
+                      <p class="text-sm font-bold text-slate-500 dark:text-slate-400">{r.cost} points</p>
+                    </div>
+                  </div>
+                  <Show
+                    when={can()}
+                    fallback={
+                      <div class="mt-3">
+                        <Bar value={balance() / r.cost} />
+                        <p class="mt-1 text-sm font-bold">{r.cost - balance()} more points to go</p>
+                      </div>
+                    }
+                  >
+                    <BigButton class="mt-3 w-full" color="bg-gradient-to-r from-amber-400 to-pink-500" onClick={() => setConfirm(r)}>
+                      Get it! 🎉
+                    </BigButton>
+                  </Show>
+                </Card>
+              )
+            }}
+          </For>
+        </div>
+      </Show>
+      <Show when={state.claims?.length}>
+        <Card>
+          <p class="font-black">My rewards</p>
+          <ul class="mt-2 divide-y divide-black/5 dark:divide-white/10">
+            <For each={state.claims.slice(0, 10)}>
+              {(c) => (
+                <li class="flex items-center justify-between gap-2 py-2">
+                  <span class="font-bold">{c.emoji} {c.name}</span>
+                  <span class={`rounded-full px-2.5 py-1 text-xs font-black ${c.given ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'}`}>
+                    {c.given ? 'Enjoyed ✓' : 'Waiting for a grown-up'}
+                  </span>
+                </li>
+              )}
+            </For>
+          </ul>
+        </Card>
+      </Show>
+      <Modal open={!!confirm()} onClose={() => setConfirm(null)}>
+        <Show when={confirm()}>
+          <div class="text-center">
+            <div class="text-6xl">{confirm().emoji}</div>
+            <p class="mt-2 text-2xl font-black">{confirm().name}</p>
+            <p class="mt-1 font-semibold">Spend {confirm().cost} of your {balance()} points?</p>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+              <BigButton color="bg-slate-400" onClick={() => setConfirm(null)}>Not yet</BigButton>
+              <BigButton color="bg-emerald-500" onClick={() => { if (claimReward(confirm().id)) { sfx.finish(); setParty((n) => n + 1) } setConfirm(null) }}>Yes! 🎉</BigButton>
+            </div>
+          </div>
+        </Show>
+      </Modal>
+      <Show keyed when={party()}>
+        <Confetti count={50} />
+        <div class="pop-in fixed inset-x-4 top-1/3 z-50 mx-auto max-w-sm rounded-3xl bg-white p-5 text-center shadow-2xl dark:bg-violet-950">
+          <p class="text-3xl font-black">Woohoo! 🎉</p>
+          <p class="mt-1 font-bold">Show this to a grown-up to get your reward.</p>
+          <BigButton class="mt-3 w-full" onClick={() => setParty(0)}>OK</BigButton>
+        </div>
+      </Show>
+    </div>
+  )
+}
+
+function ToolsScreen() {
+  const [topic, setTopic] = createSignal('tables')
+  return (
+    <div class="grid grid-cols-1 gap-4">
+      <h1 class="text-3xl font-black">Tools & tricks 🧰</h1>
+      <p class="font-semibold text-slate-600 dark:text-slate-300">
+        There’s always more than one way! Use these to work things out, and learn the shortcuts so you can do it in your head.
+      </p>
+      <Card>
+        <p class="text-sm font-bold">Tricks for:</p>
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          <For each={TOPICS}>{(t) => <Chip class="min-h-9 px-3 py-1 text-sm" on={topic() === t.id} onClick={() => setTopic(t.id)}>{t.emoji} {t.name}</Chip>}</For>
+        </div>
+      </Card>
+      <Card>
+        <Show keyed when={topic()}>{(t) => <Toolbox topic={t} />}</Show>
       </Card>
     </div>
   )

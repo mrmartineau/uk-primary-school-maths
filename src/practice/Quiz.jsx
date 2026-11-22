@@ -1,5 +1,7 @@
 import { For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js'
-import { Bar, BigButton, Clock, Confetti, Keypad, Polygon, useBurst } from './components'
+import { Bar, BigButton, Clock, Confetti, Keypad, Modal, Polygon, useBurst } from './components'
+import { Toolbox, Ways } from './Tools'
+import { methodsFor } from './methods'
 import { checkAnswer, scaleLabel, TOPIC_BY_ID } from './questions'
 import { buildQuestions, nextQuestion, pointsFor } from './session'
 import { recordAnswer } from './store'
@@ -26,6 +28,8 @@ export default function Quiz(props) {
   const stats = { correct: 0, total: 0, points: 0, bestStreak: 0, wrong: [], levelUps: [] }
   const q = createMemo(() => questions()[i()])
   const topic = createMemo(() => TOPIC_BY_ID[q()?.topic])
+  const methods = createMemo(() => (q() ? methodsFor(q()) : []))
+  const [tools, setTools] = createSignal(false)
   let timer
   let advanceTimer
 
@@ -75,7 +79,7 @@ export default function Quiz(props) {
 
   function submit(answer) {
     const p = phase()
-    if (p === 'right' || p === 'reveal') return
+    if (p === 'right' || p === 'reveal' || p === 'ways') return
     const ans = answer ?? value()
     if (!ans) return
     const ok = checkAnswer(q(), ans)
@@ -111,11 +115,29 @@ export default function Quiz(props) {
         stats.wrong.push(q())
         const { levelChange } = recordAnswer(q(), false, 0, false)
         if (levelChange < 0) setLevelMsg(`We'll make ${topic().name} a bit easier for a while 🙂`)
-        setMsg('Here’s how it works:')
+        setMsg('Not this time. Here are some ways to work it out 👇')
         setPhase('reveal')
         if (isBlitz) advanceTimer = setTimeout(next, 1400)
       }
     }
+  }
+
+  function dontKnow() {
+    if (phase() === 'right' || phase() === 'reveal') return
+    sfx.tap()
+    streak = 0
+    stats.total += 1
+    stats.wrong.push(q())
+    recordAnswer(q(), false, 0, false)
+    setMsg('That’s OK! Here are some ways to work it out 👇')
+    setPhase('reveal')
+  }
+
+  function otherWays() {
+    clearTimeout(advanceTimer)
+    sfx.tap()
+    setMsg('Nice! Here are some other ways to do it:')
+    setPhase('ways')
   }
 
   const progress = () => (isBlitz ? timeLeft() / cfg.seconds : i() / questions().length)
@@ -133,7 +155,7 @@ export default function Quiz(props) {
       </div>
 
       <Show when={q()}>
-        <div class="relative flex flex-1 flex-col gap-3 md:flex-row md:items-stretch">
+        <div class={`relative flex flex-1 flex-col gap-3 ${phase() === 'reveal' || phase() === 'ways' ? '' : 'md:flex-row md:items-stretch'}`}>
           {/* Question card */}
           <div
             class={`relative flex flex-1 flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl bg-gradient-to-br p-4 pt-9 text-center sm:gap-3 sm:p-5 sm:pt-10 text-white shadow-lg ${topic().color}`}
@@ -159,7 +181,7 @@ export default function Quiz(props) {
                   aria-live="polite"
                 >
                   {q().unit === '£' ? '£' : ''}
-                  {(phase() === 'reveal' ? q().answer : value()).replace(/-/g, '−') || <span class="opacity-30">?</span>}
+                  {(phase() === 'reveal' || phase() === 'ways' ? q().answer : value()).replace(/-/g, '−') || <span class="opacity-30">?</span>}
                   {q().unit === 'p' ? 'p' : ''}
                 </div>
               </Show>
@@ -171,18 +193,22 @@ export default function Quiz(props) {
           </div>
 
           {/* Answer area */}
-          <div class="flex flex-col justify-end gap-2 md:w-80 sm:gap-3 lg:w-[26rem]">
+          <div class={`flex flex-col justify-end gap-2 sm:gap-3 ${phase() === 'reveal' || phase() === 'ways' ? 'mx-auto w-full max-w-xl' : 'md:w-80 lg:w-[26rem]'}`}>
             <Show when={msg()}>
               <div
-                class={`pop-in rounded-2xl px-3 py-2 text-center font-bold ${phase() === 'right' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : phase() === 'reveal' ? 'bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-sky-100' : 'bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-100'}`}
+                class={`pop-in rounded-2xl px-3 py-2 text-center font-bold ${phase() === 'right' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : phase() === 'reveal' || phase() === 'ways' ? 'bg-sky-100 text-sky-900 dark:bg-sky-500/20 dark:text-sky-100' : 'bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-100'}`}
               >
                 <div>{msg()}</div>
                 <Show when={phase() === 'retry'}>
                   <div class="text-sm font-semibold sm:text-base">💡 {q().hint}</div>
                 </Show>
-                <Show when={phase() === 'reveal'}>
+                <Show when={phase() === 'reveal' && isBlitz}>
                   <div class="text-sm font-semibold sm:text-base">{q().explain}</div>
-                  <div class="text-sm opacity-80">Answer: {q().answer.replace(/-/g, '−')}</div>
+                </Show>
+                <Show when={phase() === 'right' && !isBlitz && methods().length > 1}>
+                  <button type="button" class="mt-1 rounded-full bg-white/80 px-3 py-1 text-sm font-black text-emerald-800 dark:bg-white/10 dark:text-emerald-100" onClick={otherWays}>
+                    🔍 See other ways
+                  </button>
                 </Show>
                 <Show when={levelMsg()}>
                   <div class="text-sm">{levelMsg()}</div>
@@ -191,11 +217,14 @@ export default function Quiz(props) {
             </Show>
 
             <Show
-              when={phase() !== 'reveal' || isBlitz}
+              when={(phase() !== 'reveal' && phase() !== 'ways') || isBlitz}
               fallback={
-                <BigButton class="w-full" color="bg-sky-500" onClick={next}>
-                  Got it, next ➜
-                </BigButton>
+                <>
+                  <Ways methods={methods()} />
+                  <BigButton class="w-full" color="bg-sky-500" onClick={next}>
+                    Got it, next ➜
+                  </BigButton>
+                </>
               }
             >
               <Show
@@ -217,18 +246,35 @@ export default function Quiz(props) {
                   </For>
                 </div>
               </Show>
-              <Show when={phase() === 'ask' && !isBlitz}>
-                <button type="button" class="py-1 text-sm font-bold text-violet-700 underline-offset-4 hover:underline dark:text-violet-200" onClick={() => { sfx.tap(); setMsg('Here’s a hint:'); setPhase('retry') }}>
-                  💡 I need a hint
-                </button>
-              </Show>
-              <Show when={phase() === 'retry'}>
-                <button type="button" class="py-1 text-sm font-bold text-violet-700 underline-offset-4 hover:underline dark:text-violet-200" onClick={() => submit('__skip__')}>
-                  Show me the answer
-                </button>
+              <Show when={!isBlitz}>
+                <div class="grid grid-cols-3 gap-2">
+                  <button type="button" class="btn-3d rounded-2xl bg-white px-2 py-2 text-sm font-black text-violet-800 dark:bg-white/10 dark:text-violet-100" onClick={() => { sfx.tap(); setTools(true) }}>
+                    🧰 Tools
+                  </button>
+                  <button
+                    type="button"
+                    disabled={phase() !== 'ask'}
+                    class="btn-3d rounded-2xl bg-white px-2 py-2 text-sm font-black text-amber-700 dark:bg-white/10 dark:text-amber-200"
+                    onClick={() => { sfx.tap(); setMsg('Here’s a hint:'); setPhase('retry') }}
+                  >
+                    💡 Hint
+                  </button>
+                  <button type="button" disabled={phase() === 'right'} class="btn-3d rounded-2xl bg-white px-2 py-2 text-sm font-black text-sky-700 dark:bg-white/10 dark:text-sky-200" onClick={dontKnow}>
+                    🤷 Don’t know
+                  </button>
+                </div>
               </Show>
             </Show>
           </div>
+
+          <Modal open={tools()} onClose={() => setTools(false)}>
+            <div class="mb-2 flex items-center justify-between">
+              <p class="text-xl font-black">🧰 Toolbox</p>
+              <button type="button" class="btn-3d rounded-full bg-violet-600 px-4 py-1.5 font-black text-white" onClick={() => setTools(false)}>Done</button>
+            </div>
+            <p class="mb-2 rounded-xl bg-violet-50 p-2 text-center font-black dark:bg-white/5">{q().text}</p>
+            <Toolbox topic={q().topic} question={q()} />
+          </Modal>
 
           <Show keyed when={burst()}>
             <Confetti />

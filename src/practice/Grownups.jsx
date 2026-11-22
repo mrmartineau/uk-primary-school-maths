@@ -2,6 +2,7 @@ import { For, Show, createSignal } from 'solid-js'
 import { BigButton, Card, Chip, Stars } from './components'
 import { TOPICS } from './questions'
 import {
+  REWARD_IDEAS, addReward, balance, removeReward, setClaimGiven, totalPoints, undoClaim, updateReward,
   exportData, importData, resetAll, setLevel, setState, state, topicAccuracy, topicLevel, topicStars, weeklyGoal, weekTotals, pastWeeks,
 } from './store'
 
@@ -55,6 +56,9 @@ export function Grownups(props) {
   const [b] = createSignal(6 + Math.floor(Math.random() * 7))
   const [gate, setGate] = createSignal('')
   const [msg, setMsg] = createSignal('')
+  const [newEmoji, setNewEmoji] = createSignal('🎁')
+  const [newName, setNewName] = createSignal('')
+  const [newCost, setNewCost] = createSignal('500')
   let fileInput
 
   const toggleFocus = (id) => {
@@ -150,6 +154,65 @@ export function Grownups(props) {
               {(g) => <Chip on={String(state.profile.goal) === String(g)} onClick={() => setState('profile', 'goal', g)}>{g === 'auto' ? 'Auto 📈' : g}</Chip>}
             </For>
           </div>
+        </Card>
+
+        <Card>
+          <p class="font-black">Rewards 🎁</p>
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            Set what points can buy, e.g. 1000 points = film night. Total earned: <b>{totalPoints()}</b> · available: <b>{balance()}</b>. Spending doesn’t change the weekly score.
+          </p>
+          <Show when={state.rewards?.length}>
+            <ul class="mt-3 grid grid-cols-1 gap-2">
+              <For each={state.rewards}>
+                {(r) => (
+                  <li class="flex items-center gap-2">
+                    <input class="w-12 shrink-0 rounded-xl border-2 border-violet-200 bg-white px-1 py-2 text-center text-xl dark:border-white/20 dark:bg-white/10" value={r.emoji} onChange={(e) => updateReward(r.id, { emoji: e.currentTarget.value || '🎁' })} aria-label="Emoji" />
+                    <input size="4" class="min-w-0 flex-1 rounded-xl border-2 border-violet-200 bg-white px-3 py-2 font-bold dark:border-white/20 dark:bg-white/10" value={r.name} onChange={(e) => updateReward(r.id, { name: e.currentTarget.value })} aria-label="Reward" />
+                    <input type="number" inputmode="numeric" min="1" class="w-20 shrink-0 rounded-xl border-2 border-violet-200 bg-white px-2 py-2 font-bold dark:border-white/20 dark:bg-white/10" value={r.cost} onChange={(e) => updateReward(r.id, { cost: Math.max(1, Number(e.currentTarget.value) || 1) })} aria-label="Points" />
+                    <button type="button" class="shrink-0 rounded-xl px-1 py-2 text-xl" aria-label="Remove reward" onClick={() => removeReward(r.id)}>🗑️</button>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </Show>
+          <form
+            class="mt-3 flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!newName().trim()) return
+              addReward(newEmoji(), newName().trim(), Number(newCost()) || 500)
+              setNewName('')
+            }}
+          >
+            <input class="w-12 shrink-0 rounded-xl border-2 border-violet-200 bg-white px-1 py-2 text-center text-xl dark:border-white/20 dark:bg-white/10" value={newEmoji()} onInput={(e) => setNewEmoji(e.currentTarget.value)} aria-label="Emoji" />
+            <input size="4" class="min-w-0 flex-1 rounded-xl border-2 border-violet-200 bg-white px-3 py-2 font-bold dark:border-white/20 dark:bg-white/10" placeholder="New reward, e.g. Film night" value={newName()} onInput={(e) => setNewName(e.currentTarget.value)} />
+            <input type="number" inputmode="numeric" min="1" class="w-20 shrink-0 rounded-xl border-2 border-violet-200 bg-white px-2 py-2 font-bold dark:border-white/20 dark:bg-white/10" value={newCost()} onInput={(e) => setNewCost(e.currentTarget.value)} aria-label="Points" />
+            <button class="btn-3d shrink-0 rounded-xl bg-violet-600 px-3 py-2 font-black text-white">Add</button>
+          </form>
+          <p class="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">Ideas (tap to add)</p>
+          <div class="mt-1 flex flex-wrap gap-2">
+            <For each={REWARD_IDEAS.filter(([, n]) => !state.rewards?.some((r) => r.name === n))}>
+              {([emoji, name, cost]) => <Chip class="min-h-9 px-3 py-1 text-sm" onClick={() => addReward(emoji, name, cost)}>{emoji} {name} · {cost}</Chip>}
+            </For>
+          </div>
+          <Show when={state.claims?.length}>
+            <p class="mt-4 font-black">Claimed</p>
+            <ul class="mt-1 divide-y divide-black/5 text-sm dark:divide-white/10">
+              <For each={state.claims}>
+                {(c) => (
+                  <li class="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span><b>{c.emoji} {c.name}</b> <span class="text-slate-500">· {c.cost} pts · {new Date(c.ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span></span>
+                    <span class="flex gap-2">
+                      <Chip class="min-h-9 px-3 py-1 text-sm" on={c.given} onClick={() => setClaimGiven(c.id, !c.given)}>{c.given ? 'Given ✓' : 'Mark as given'}</Chip>
+                      <Show when={!c.given}>
+                        <Chip class="min-h-9 px-3 py-1 text-sm" onClick={() => { if (confirm(`Cancel "${c.name}" and give back ${c.cost} points?`)) undoClaim(c.id) }}>Refund</Chip>
+                      </Show>
+                    </span>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </Show>
         </Card>
 
         <Card>

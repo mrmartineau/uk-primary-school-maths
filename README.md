@@ -24,6 +24,9 @@ Topics span basic number and place value through to fractions, percentages, geom
 - **Adaptive levels**: 7 of 8 right first time moves up a level; a run of wrong answers moves down
 - **Modes**: daily challenge, quick mix, pick a topic, times tables (choose which tables), 60-second Beat the Clock, Fix my mistakes, and Stretch it
 - **Stretch it**: simple facts from earlier years made bigger or smaller (×10, ×100, ×1000, tenths, hundredths), e.g. 3 + 7 = 10 → 300 + 700 = 1000 → 0.3 + 0.7 = 1. Also mixed into quick mix and the daily challenge for older children
+- **Ways to work it out**: every question can show several methods from the guide (partitioning, counting up, friendly numbers, grid method, chunking, inverse facts, times-table shortcuts…) with number-line, grid, array and fraction-bar pictures. Shown after "Don't know", after a wrong answer, or via "See other ways" after a right one
+- **Toolbox**: interactive number line, times grid, 100 square, place value chart, fraction wall and a list of tricks for each topic, usable mid-question with no penalty
+- **Rewards**: grown-ups set rewards (e.g. 1000 points = film night); children spend points on them and grown-ups mark them as given
 - **Spaced repetition**: topics come back for review after 1–7 days depending on accuracy
 - **Weekly points** with an auto goal that rises ~10% on recent weeks, day streaks and badges
 - **Grown-ups area** (behind a times-table question): year group, weekly goal, double-points focus topics, level overrides, backup/restore
