@@ -4,7 +4,7 @@ import { TOPICS } from './questions'
 import { TransferCard } from './Transfer'
 import {
   REWARD_IDEAS, addKid, addReward, kidList, removeKid, switchKid, balance, removeReward, setClaimGiven, totalPoints, undoClaim, updateReward,
-  exportData, importData, resetAll, setLevel, setState, state, topicAccuracy, topicLevel, topicStars, weeklyGoal, weekTotals, pastWeeks,
+  exportData, importData, setLevel, setState, state, topicAccuracy, topicLevel, topicStars, weeklyGoal, weekTotals, pastWeeks,
 } from './store'
 
 const HANDY_LINKS = [
