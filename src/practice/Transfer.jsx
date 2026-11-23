@@ -1,6 +1,6 @@
 import { Show, createResource, createSignal } from 'solid-js'
 import { BigButton, Card } from './components'
-import { decodeTransfer, encodeTransfer, qrSvg, transferLink } from './transfer'
+import { decodeTransfer, encodeTransfer, qrSvg, transferLink } from './transferCode'
 import { BADGES, importData, state, totalPoints } from './store'
 import { sfx } from './sound'
 

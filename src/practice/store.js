@@ -1,4 +1,4 @@
-import { createStore, produce } from 'solid-js/store'
+import { createStore, produce, reconcile } from 'solid-js/store'
 import { createEffect, createRoot } from 'solid-js'
 import { TOPICS, TOPIC_BY_ID } from './questions'
 
@@ -65,7 +65,7 @@ createRoot(() => {
 window.addEventListener('storage', (e) => {
   if (e.key === KEY && e.newValue) {
     try {
-      setState(JSON.parse(e.newValue))
+      setState(reconcile(JSON.parse(e.newValue)))
     } catch {
       /* ignore */
     }
@@ -303,7 +303,8 @@ export function exportData() {
 export function importData(json) {
   const data = JSON.parse(json)
   if (!data || typeof data !== 'object' || !data.profile) throw new Error('Not a practice backup')
-  setState({ ...fresh(), ...data })
+  const base = fresh()
+  setState({ ...base, ...data, profile: { ...base.profile, ...data.profile }, best: { ...base.best, ...data.best } })
 }
 
 // ---- badges ---------------------------------------------------------------
