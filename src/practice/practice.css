@@ -47,6 +47,8 @@ button, a, [role="button"] { touch-action: manipulation; user-select: none; -web
   0% { transform: translate(0, 0) rotate(0); opacity: 1 }
   100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0 }
 }
+@keyframes ring-drain { from { stroke-dashoffset: 0 } to { stroke-dashoffset: 125.66 } }
+.ring-drain { animation: ring-drain linear forwards; }
 @keyframes wiggle { 0%,100% { transform: rotate(-4deg) } 50% { transform: rotate(4deg) } }
 @keyframes slide-up { from { transform: translateY(24px); opacity: 0 } to { transform: none; opacity: 1 } }
 

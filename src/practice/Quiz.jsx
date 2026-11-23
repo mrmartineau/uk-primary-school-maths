@@ -32,6 +32,24 @@ export default function Quiz(props) {
   const [tools, setTools] = createSignal(false)
   let timer
   let advanceTimer
+  let tickTimer
+  // Countdown shown after a right answer so there's time to tap "See other ways"
+  const [countdown, setCountdown] = createSignal(null) // { ms, left }
+  function startCountdown(ms) {
+    clearInterval(tickTimer)
+    const end = Date.now() + ms
+    setCountdown({ ms, left: Math.ceil(ms / 1000) })
+    tickTimer = setInterval(() => {
+      const left = Math.max(0, Math.ceil((end - Date.now()) / 1000))
+      setCountdown((c) => (c ? { ...c, left } : c))
+      if (left <= 0) clearInterval(tickTimer)
+    }, 200)
+    advanceTimer = setTimeout(next, ms)
+  }
+  function stopCountdown() {
+    clearInterval(tickTimer)
+    setCountdown(null)
+  }
 
   if (!questions().length) queueMicrotask(() => props.onDone(stats))
 
@@ -49,7 +67,7 @@ export default function Quiz(props) {
       }, 1000)
     }
   })
-  onCleanup(() => { clearInterval(timer); clearTimeout(advanceTimer) })
+  onCleanup(() => { clearInterval(timer); clearInterval(tickTimer); clearTimeout(advanceTimer) })
 
   let finished = false
   function finish() {
@@ -61,6 +79,7 @@ export default function Quiz(props) {
 
   function next() {
     clearTimeout(advanceTimer)
+    stopCountdown()
     setValue('')
     setMsg('')
     setGain(null)
@@ -101,7 +120,8 @@ export default function Quiz(props) {
       setMsg(firstTry ? PRAISE[Math.floor(Math.random() * PRAISE.length)] : 'You got there! 💪')
       setPhase('right')
       fire()
-      advanceTimer = setTimeout(next, isBlitz ? 500 : levelChange > 0 ? 1800 : 1000)
+      if (isBlitz) advanceTimer = setTimeout(next, 500)
+      else startCountdown(levelChange > 0 ? 6000 : 4500)
     } else {
       sfx.wrong()
       setShake((n) => n + 1)
@@ -135,6 +155,7 @@ export default function Quiz(props) {
 
   function otherWays() {
     clearTimeout(advanceTimer)
+    stopCountdown()
     sfx.tap()
     setMsg('Nice! Here are some other ways to do it:')
     setPhase('ways')
@@ -205,10 +226,29 @@ export default function Quiz(props) {
                 <Show when={phase() === 'reveal' && isBlitz}>
                   <div class="text-sm font-semibold sm:text-base">{q().explain}</div>
                 </Show>
-                <Show when={phase() === 'right' && !isBlitz && methods().length > 1}>
-                  <button type="button" class="mt-1 rounded-full bg-white/80 px-3 py-1 text-sm font-black text-emerald-800 dark:bg-white/10 dark:text-emerald-100" onClick={otherWays}>
-                    🔍 See other ways
-                  </button>
+                <Show when={phase() === 'right' && !isBlitz && countdown()}>
+                  <div class="mt-2 flex items-center justify-center gap-3">
+                    <Show when={methods().length > 1}>
+                      <button type="button" class="btn-3d rounded-full bg-white px-4 py-2.5 text-base font-black text-emerald-800 dark:bg-white/10 dark:text-emerald-100" onClick={otherWays}>
+                        🔍 See other ways
+                      </button>
+                    </Show>
+                    <button type="button" class="relative grid h-12 w-12 shrink-0 place-items-center" onClick={() => { sfx.tap(); next() }} aria-label={`Next question in ${countdown().left} seconds. Tap to go now.`}>
+                      <svg viewBox="0 0 48 48" class="absolute inset-0 -rotate-90">
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" stroke-width="5" class="text-emerald-200 dark:text-emerald-900" />
+                        <Show keyed when={countdown().ms}>
+                          {(ms) => (
+                            <circle
+                              cx="24" cy="24" r="20" fill="none" stroke="#10b981" stroke-width="5" stroke-linecap="round"
+                              stroke-dasharray="125.66" class="ring-drain" style={{ 'animation-duration': `${ms}ms` }}
+                            />
+                          )}
+                        </Show>
+                      </svg>
+                      <span class="relative text-lg font-black">{countdown().left || '➜'}</span>
+                    </button>
+                  </div>
+                  <p class="mt-1 text-xs font-semibold opacity-70">Tap the circle to go now</p>
                 </Show>
                 <Show when={levelMsg()}>
                   <div class="text-sm">{levelMsg()}</div>
