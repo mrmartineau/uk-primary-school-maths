@@ -30,6 +30,8 @@ Topics span basic number and place value through to fractions, percentages, geom
 - **Spaced repetition**: topics come back for review after 1–7 days depending on accuracy
 - **Weekly points** with an auto goal that rises ~10% on recent weeks, day streaks and badges
 - **Grown-ups area** (behind a times-table question): year group, weekly goal, double-points focus topics, level overrides, backup/restore
+- **Deep links**: every screen, tool and practice has its own address (hash routes such as `/practice/#/tools/grid`, `/practice/#/play/tables/7,8`, `/practice/#/play/topic/bonds?scale=100`), so they can be bookmarked, added to the Home Screen or messaged. Grown-ups get a list of handy links, and topic/tables/tools screens have a copy-link button
+- **Move to another device**: grown-ups can share a transfer link (AirDrop, Messages, email) or show a QR code. The link carries the progress itself, compressed, so nothing is uploaded. Opening it on the new device shows a summary before replacing anything. JSON backup files still work too
 - On-screen keypad and large touch targets for iPad and iPhone; can be added to the home screen
 
 ## Who it's for

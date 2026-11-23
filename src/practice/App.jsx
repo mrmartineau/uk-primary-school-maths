@@ -1,5 +1,5 @@
 import { For, Match, Show, Switch, createSignal, onCleanup, onMount } from 'solid-js'
-import { Bar, BigButton, Card, Chip, Confetti, Modal, Stars } from './components'
+import { Bar, BigButton, Card, Chip, Confetti, CopyLink, Modal, Stars } from './components'
 import Quiz from './Quiz'
 import { Grownups, Setup } from './Grownups'
 import { Toolbox } from './Tools'
@@ -10,30 +10,66 @@ import {
 } from './store'
 import { POINTS, STRETCHABLE, scaleLabel, stretchScales, stretchSession, blitz, dailyChallenge, mistakesSession, quickMix, reviewSession, tablesSession, topicSession } from './session'
 import { sfx } from './sound'
+import { configFromPlay, parseHash, playHash, toHash } from './routes'
+import { Import } from './Transfer'
 
-// --- tiny history-aware router so iOS swipe-back works ----------------------
-const [route, setRoute] = createSignal({ name: 'home' })
+// --- hash router: every screen, tool and quiz has a link, and iOS swipe-back works
+function routeFromHash() {
+  const r = parseHash()
+  if (r.name === 'play') {
+    const config = configFromPlay(r.params)
+    return config ? { name: 'quiz', params: { config } } : { name: 'home', params: {} }
+  }
+  return r
+}
+const [route, setRoute] = createSignal(routeFromHash())
+let depth = 0 // in-app pages we can go back to
 function go(name, params = {}) {
   sfx.tap()
-  history.pushState({ name, params }, '')
+  depth++
+  history.pushState({ name, params }, '', toHash(name, params))
   setRoute({ name, params })
   window.scrollTo(0, 0)
 }
+/** Update the address bar without adding a history entry (eg a tab change) */
+export function replaceRoute(name, params = {}) {
+  history.replaceState({ name, params }, '', toHash(name, params))
+}
+function goHome() {
+  history.replaceState({ name: 'home', params: {} }, '', '#/')
+  setRoute({ name: 'home', params: {} })
+  window.scrollTo(0, 0)
+}
 function back() {
-  if (history.state?.name) history.back()
-  else setRoute({ name: 'home' })
+  if (depth > 0) {
+    depth--
+    history.back()
+  } else goHome()
 }
 
 export default function App() {
-  const onPop = (e) => setRoute(e.state?.name ? { name: e.state.name, params: e.state.params } : { name: 'home' })
+  const onPop = (e) => setRoute(e.state?.name ? { name: e.state.name, params: e.state.params } : routeFromHash())
+  // Typing or tapping a link to a different hash
+  const onHash = () => {
+    if (history.state?.name && toHash(history.state.name, history.state.params) === location.hash) return
+    let r = routeFromHash()
+    if (r.name === 'results') r = { name: 'home', params: {} }
+    history.replaceState(r, '', r.name === 'quiz' || r.name === 'import' ? location.hash : toHash(r.name, r.params))
+    setRoute(r)
+  }
   onMount(() => {
-    history.replaceState(null, '')
+    const r = route()
+    // A results page can't be rebuilt from a link, and a bare address means home
+    if (r.name === 'results' || !location.hash) replaceRouteState({ name: 'home', params: {} })
+    else history.replaceState(r, '', r.name === 'quiz' || r.name === 'import' ? location.hash : toHash(r.name, r.params))
     window.addEventListener('popstate', onPop)
+    window.addEventListener('hashchange', onHash)
   })
-  onCleanup(() => window.removeEventListener('popstate', onPop))
+  onCleanup(() => { window.removeEventListener('popstate', onPop); window.removeEventListener('hashchange', onHash) })
 
   const r = () => route()
   return (
+    <Show when={r().name !== 'import'} fallback={<Import code={r().params.code} onDone={goHome} />}>
     <Show when={state.profile.setup} fallback={<Setup />}>
       <div class="min-h-dvh">
         <Show when={r().name !== 'quiz'}>
@@ -42,14 +78,14 @@ export default function App() {
         <main class={`safe-x mx-auto w-full max-w-5xl pt-3 ${r().name === 'quiz' ? 'safe-top' : ''} ${r().name === 'quiz' || r().name === 'results' ? 'pb-4' : 'pb-28'}`}>
           <Switch>
             <Match when={r().name === 'home'}><Home /></Match>
-            <Match when={r().name === 'topics'}><Topics /></Match>
-            <Match when={r().name === 'tables'}><Tables /></Match>
+            <Match when={r().name === 'topics'}><Show keyed when={r().params}>{(p) => <Topics topic={p.topic} />}</Show></Match>
+            <Match when={r().name === 'tables'}><Show keyed when={r().params}>{(p) => <Tables tables={p.tables} />}</Show></Match>
             <Match when={r().name === 'blitz'}><BlitzSetup /></Match>
             <Match when={r().name === 'stretch'}><StretchSetup /></Match>
             <Match when={r().name === 'progress'}><Progress /></Match>
             <Match when={r().name === 'badges'}><Badges /></Match>
             <Match when={r().name === 'rewards'}><Rewards /></Match>
-            <Match when={r().name === 'tools'}><ToolsScreen /></Match>
+            <Match when={r().name === 'tools'}><Show keyed when={r().params}>{(p) => <ToolsScreen tab={p.tab} topic={p.topic} />}</Show></Match>
             <Match when={r().name === 'grownups'}><Grownups onBack={back} /></Match>
             <Match when={r().name === 'quiz'}>
               <Show keyed when={r().params.config}>
@@ -70,7 +106,13 @@ export default function App() {
         </Show>
       </div>
     </Show>
+    </Show>
   )
+}
+
+function replaceRouteState(r) {
+  history.replaceState(r, '', toHash(r.name, r.params))
+  setRoute(r)
 }
 
 function start(config) {
@@ -99,7 +141,7 @@ function finishSession(config, stats) {
   sfx.finish()
   // Replace the quiz in history so "back" doesn't restart it
   const params = { config, stats, bonus, notes, badges, newBest: config.mode === 'blitz' && stats.correct > prevBlitz }
-  history.replaceState({ name: 'results', params }, '')
+  history.replaceState({ name: 'results', params }, '', '#/results')
   setRoute({ name: 'results', params })
 }
 
@@ -290,8 +332,12 @@ function Home() {
   )
 }
 
-function Topics() {
-  const [sel, setSel] = createSignal(null)
+function Topics(props) {
+  const [sel, _setSel] = createSignal(props.topic ? TOPIC_BY_ID[props.topic] : null)
+  const setSel = (t) => {
+    _setSel(t)
+    replaceRoute('topics', t ? { topic: t.id } : {})
+  }
   const [count, setCount] = createSignal(10)
   const [level, setLevel] = createSignal(0)
   const [scale, setScale] = createSignal(0)
@@ -355,7 +401,10 @@ function Topics() {
             </div>
             <p class="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Easy facts made bigger or smaller, like 300 + 700 = 1000 or 0.3 + 0.7 = 1.</p>
           </Show>
-          <BigButton class="mt-5 w-full" color="bg-emerald-500" onClick={() => { const t = sel(); setSel(null); start(topicSession(t.id, count(), level(), STRETCHABLE.includes(t.id) ? scale() : 0)) }}>
+          <div class="mt-4 flex justify-center">
+            <CopyLink hash={() => playHash(topicSession(sel().id, count(), level(), STRETCHABLE.includes(sel().id) ? scale() : 0))} label="Copy link to this practice" />
+          </div>
+          <BigButton class="mt-3 w-full" color="bg-emerald-500" onClick={() => { const t = sel(); _setSel(null); start(topicSession(t.id, count(), level(), STRETCHABLE.includes(t.id) ? scale() : 0)) }}>
             Let’s go! 🚀
           </BigButton>
         </Show>
@@ -392,10 +441,14 @@ function TablePicker(props) {
   )
 }
 
-function Tables() {
+function Tables(props) {
   const weakest = () =>
     TABLES.filter((t) => state.tables[t]?.t >= 5).sort((a, b) => state.tables[a].c / state.tables[a].t - state.tables[b].c / state.tables[b].t).slice(0, 3)
-  const [sel, setSel] = createSignal(weakest().length ? weakest() : [2, 5, 10])
+  const [sel, _setSel] = createSignal(props.tables?.length ? props.tables : weakest().length ? weakest() : [2, 5, 10])
+  const setSel = (t) => {
+    _setSel(t)
+    replaceRoute('tables', { tables: t })
+  }
   return (
     <div class="grid grid-cols-1 gap-4">
       <h1 class="text-3xl font-black">Times tables ✖️</h1>
@@ -420,6 +473,9 @@ function Tables() {
         <BigButton color="bg-gradient-to-r from-rose-400 to-red-500" disabled={!sel().length} onClick={() => start({ ...blitz(['tables'], sel()), title: 'Tables race' })}>
           ⏱️ 60-second race
         </BigButton>
+      </div>
+      <div class="flex justify-center">
+        <CopyLink hash={() => playHash(tablesSession(sel()))} label="Copy link to practise these tables" />
       </div>
     </div>
   )
@@ -560,7 +616,7 @@ function Results(props) {
       </Show>
 
       <div class="grid grid-cols-2 gap-3">
-        <BigButton color="bg-violet-600" onClick={() => { history.replaceState(null, ''); setRoute({ name: 'home' }) }}>🏠 Home</BigButton>
+        <BigButton color="bg-violet-600" onClick={goHome}>🏠 Home</BigButton>
         <BigButton color="bg-emerald-500" onClick={() => start(again())}>🔁 Again</BigButton>
       </div>
     </div>
@@ -769,8 +825,12 @@ function Rewards() {
   )
 }
 
-function ToolsScreen() {
-  const [topic, setTopic] = createSignal('tables')
+function ToolsScreen(props) {
+  const [topic, _setTopic] = createSignal(props.topic || 'tables')
+  const [tab, _setTab] = createSignal(props.tab || (props.topic ? 'tricks' : 'line'))
+  const sync = () => replaceRoute('tools', { tab: tab(), topic: topic() })
+  const setTopic = (t) => { _setTopic(t); _setTab('tricks'); sync() }
+  const setTab = (t) => { _setTab(t); sync() }
   return (
     <div class="grid grid-cols-1 gap-4">
       <h1 class="text-3xl font-black">Tools & tricks 🧰</h1>
@@ -784,8 +844,11 @@ function ToolsScreen() {
         </div>
       </Card>
       <Card>
-        <Show keyed when={topic()}>{(t) => <Toolbox topic={t} />}</Show>
+        <Show keyed when={topic()}>{(t) => <Toolbox topic={t} tab={tab()} onTab={setTab} />}</Show>
       </Card>
+      <div class="flex justify-center">
+        <CopyLink hash={() => toHash('tools', { tab: tab(), topic: topic() })} label="Copy link to this tool" />
+      </div>
     </div>
   )
 }

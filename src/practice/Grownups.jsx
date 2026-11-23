@@ -1,10 +1,28 @@
 import { For, Show, createSignal } from 'solid-js'
-import { BigButton, Card, Chip, Stars } from './components'
+import { BigButton, Card, Chip, CopyLink, Stars } from './components'
 import { TOPICS } from './questions'
+import { TransferCard } from './Transfer'
 import {
   REWARD_IDEAS, addReward, balance, removeReward, setClaimGiven, totalPoints, undoClaim, updateReward,
   exportData, importData, resetAll, setLevel, setState, state, topicAccuracy, topicLevel, topicStars, weeklyGoal, weekTotals, pastWeeks,
 } from './store'
+
+const HANDY_LINKS = [
+  ['🏠 Home', '#/'],
+  ['📆 Daily challenge', '#/play/daily'],
+  ['🎲 Quick mix', '#/play/mix'],
+  ['✖️ 7 & 8 times tables', '#/play/tables/7,8'],
+  ['✖️ All times tables', '#/play/tables/2,3,4,5,6,7,8,9,10,11,12'],
+  ['⏱️ Tables race (6, 7, 9)', '#/play/blitz?tables=6,7,9'],
+  ['💪 Stretch: bonds ×100', '#/play/topic/bonds?scale=100'],
+  ['🍕 Fractions practice', '#/play/topic/fractions'],
+  ['🔧 Fix mistakes', '#/play/mistakes'],
+  ['📏 Number line tool', '#/tools/line'],
+  ['✖️ Times grid tool', '#/tools/grid'],
+  ['💡 Times-table tricks', '#/tools/tricks/tables'],
+  ['🎁 Rewards', '#/rewards'],
+  ['📈 Progress', '#/progress'],
+]
 
 const YEARS = ['Reception', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5', 'Year 6']
 
@@ -46,6 +64,30 @@ export function Setup() {
       >
         Start my quest 🚀
       </BigButton>
+      <details class="rounded-2xl bg-white/60 p-3 text-sm dark:bg-white/5">
+        <summary class="cursor-pointer font-bold">Moving from another device? 📲</summary>
+        <p class="mt-2 text-slate-600 dark:text-slate-300">
+          On the old device, open 👪 Grown-ups → “Move to another device”. Then scan its QR code with this device’s camera, or open the link it shares.
+        </p>
+        <p class="mt-2 text-slate-600 dark:text-slate-300">Got a backup file instead?</p>
+        <label class="btn-3d mt-2 inline-block cursor-pointer rounded-xl bg-sky-500 px-4 py-2 font-black text-white">
+          ⬆️ Restore backup file
+          <input
+            type="file"
+            accept="application/json,.json"
+            class="hidden"
+            onChange={async (e) => {
+              const file = e.currentTarget.files?.[0]
+              if (!file) return
+              try {
+                importData(await file.text())
+              } catch {
+                alert('That file is not a Maths Quest backup.')
+              }
+            }}
+          />
+        </label>
+      </details>
     </div>
   )
 }
@@ -276,7 +318,26 @@ export function Grownups(props) {
         </Card>
 
         <Card>
-          <p class="font-black">Backup</p>
+          <p class="font-black">Handy links 🔗</p>
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            Every screen, tool and practice has its own link. Copy one to bookmark it, add it to the Home Screen, or message it (eg “do the 7s tonight”). On a topic or tables screen, use the 🔗 button to link to exactly that practice.
+          </p>
+          <ul class="mt-2 grid gap-1 sm:grid-cols-2">
+            <For each={HANDY_LINKS}>
+              {([label, hash]) => (
+                <li class="flex items-center justify-between gap-2 rounded-xl bg-violet-50 px-3 py-1 dark:bg-white/5">
+                  <span class="text-sm font-bold">{label}</span>
+                  <CopyLink hash={hash} label="Copy" />
+                </li>
+              )}
+            </For>
+          </ul>
+        </Card>
+
+        <TransferCard />
+
+        <Card>
+          <p class="font-black">Backup file</p>
           <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
             Progress is stored only on this device (in the browser). Download a backup to move it to another iPad or iPhone, or in case browser data is cleared.
           </p>

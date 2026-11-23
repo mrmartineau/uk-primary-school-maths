@@ -1,5 +1,6 @@
 import { For, Show, createSignal, onCleanup, onMount } from 'solid-js'
 import { sfx } from './sound'
+import { linkFor } from './routes'
 
 export function Stars(props) {
   return (
@@ -194,3 +195,25 @@ export function Modal(props) {
     </Show>
   )
 }
+
+/** Small button that copies (or shares) a deep link */
+export function CopyLink(props) {
+  const [done, setDone] = createSignal(false)
+  const copy = async () => {
+    sfx.tap()
+    const url = linkFor(typeof props.hash === 'function' ? props.hash() : props.hash)
+    try {
+      await navigator.clipboard.writeText(url)
+      setDone(true)
+      setTimeout(() => setDone(false), 1800)
+    } catch {
+      window.prompt('Copy this link:', url)
+    }
+  }
+  return (
+    <button type="button" onClick={copy} class="rounded-full px-3 py-1.5 text-sm font-bold text-violet-700 underline-offset-4 hover:underline dark:text-violet-200">
+      {done() ? '✅ Link copied!' : `🔗 ${props.label || 'Copy link'}`}
+    </button>
+  )
+}
+

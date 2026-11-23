@@ -196,7 +196,8 @@ const BEST_TOOL = {
 
 export function Toolbox(props) {
   const nums = createMemo(() => numbersIn(props.question?.text))
-  const [tab, setTab] = createSignal(BEST_TOOL[props.topic] || 'tricks')
+  const [tab, _setTab] = createSignal(props.tab || BEST_TOOL[props.topic] || 'tricks')
+  const setTab = (t) => { _setTab(t); props.onTab?.(t) }
   const decimals = () => nums().some((n) => !Number.isInteger(n))
   return (
     <div class="grid gap-3">

@@ -15,7 +15,8 @@
     "lucide-react": "^1.11.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "solid-js": "^1.9.20"
+    "solid-js": "^1.9.20",
+    "uqr": "^0.1.2"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
