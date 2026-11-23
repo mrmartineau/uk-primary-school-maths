@@ -3,7 +3,7 @@ import { BigButton, Card, Chip, CopyLink, Stars } from './components'
 import { TOPICS } from './questions'
 import { TransferCard } from './Transfer'
 import {
-  REWARD_IDEAS, addReward, balance, removeReward, setClaimGiven, totalPoints, undoClaim, updateReward,
+  REWARD_IDEAS, addKid, addReward, kidList, removeKid, switchKid, balance, removeReward, setClaimGiven, totalPoints, undoClaim, updateReward,
   exportData, importData, resetAll, setLevel, setState, state, topicAccuracy, topicLevel, topicStars, weeklyGoal, weekTotals, pastWeeks,
 } from './store'
 
@@ -160,6 +160,15 @@ export function Grownups(props) {
           <p class="mt-1 text-slate-600 dark:text-slate-300">
             <b>{w().points}</b> points ({last().points} last week) · <b>{w().total}</b> questions · <b>{w().total ? Math.round((w().correct / w().total) * 100) : 0}%</b> right first time · practised on <b>{w().active}</b> day{w().active === 1 ? '' : 's'}.
           </p>
+        </Card>
+
+        <Card>
+          <p class="font-black">Children on this device</p>
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Each child has their own points, levels, badges and rewards. Pick who is playing.</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <For each={kidList()}>{(k) => <Chip on={k.active} onClick={() => switchKid(k.id)}>{k.name}</Chip>}</For>
+            <Chip onClick={() => { addKid(); props.onBack() }}>➕ Add a child</Chip>
+          </div>
         </Card>
 
         <Card>
@@ -351,9 +360,11 @@ export function Grownups(props) {
 
         <Card>
           <p class="font-black text-rose-600">Start again</p>
-          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Deletes all points, levels, badges and settings on this device.</p>
-          <BigButton color="bg-rose-500" class="mt-3 text-base" onClick={() => { if (confirm('Delete all Maths Quest progress on this device?')) { resetAll(); props.onBack() } }}>
-            🗑️ Reset everything
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            {kidList().length > 1 ? 'Removes this child and all their points, levels, badges and settings. Other children are kept.' : 'Deletes all points, levels, badges and settings on this device.'}
+          </p>
+          <BigButton color="bg-rose-500" class="mt-3 text-base" onClick={() => { if (confirm(kidList().length > 1 ? `Remove ${state.profile.name || 'this child'} and all their progress?` : 'Delete all Maths Quest progress on this device?')) { removeKid(); props.onBack() } }}>
+            {kidList().length > 1 ? '🗑️ Remove this child' : '🗑️ Reset everything'}
           </BigButton>
         </Card>
       </div>

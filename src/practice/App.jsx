@@ -5,7 +5,7 @@ import { Grownups, Setup } from './Grownups'
 import { Toolbox } from './Tools'
 import { STRETCH_SCALES, TOPICS, TOPIC_BY_ID } from './questions'
 import {
-  BADGES, addBonus, balance, checkBadges, claimReward, dayKey, dayStreak, dueTopics, pastWeeks, recordSession, state,
+  BADGES, addBonus, balance, checkBadges, claimReward, dayKey, dayStreak, dueTopics, kidList, pastWeeks, recordSession, state, switchKid,
   topicAccuracy, topicLevel, topicStars, totalPoints, visibleTopics, weakTopics, weekDays, weekTotals, weeklyGoal,
 } from './store'
 import { POINTS, STRETCHABLE, scaleLabel, stretchScales, stretchSession, blitz, dailyChallenge, mistakesSession, quickMix, reviewSession, tablesSession, topicSession } from './session'
@@ -272,6 +272,12 @@ function Home() {
       <h1 class="text-3xl font-black tracking-tight sm:text-4xl">
         {hello}{state.profile.name ? `, ${state.profile.name}` : ''}! 👋
       </h1>
+
+      <Show when={kidList().length > 1}>
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Who is playing?">
+          <For each={kidList()}>{(k) => <Chip on={k.active} onClick={() => switchKid(k.id)}>{k.name}</Chip>}</For>
+        </div>
+      </Show>
 
       <RewardCard />
 

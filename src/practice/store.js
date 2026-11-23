@@ -1,5 +1,5 @@
 import { createStore, produce, reconcile } from 'solid-js/store'
-import { createEffect, createRoot } from 'solid-js'
+import { batch, createEffect, createRoot, createSignal, untrack } from 'solid-js'
 import { TOPICS, TOPIC_BY_ID } from './questions'
 
 const KEY = 'maths-practice-v1'
@@ -36,9 +36,9 @@ const fresh = () => ({
   claims: [], // { id, rewardId, emoji, name, cost, ts, given }
 })
 
-function load() {
+function load(key) {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return fresh()
     const data = JSON.parse(raw)
     const base = fresh()
@@ -48,13 +48,41 @@ function load() {
   }
 }
 
-export const [state, setState] = createStore(load())
+// ---- children --------------------------------------------------------------
+// Each child has their own saved data. The first child keeps the original key,
+// so progress saved before this feature existed is still theirs.
+const INDEX = 'maths-practice-kids'
+const keyOf = (id) => (id === 'main' ? KEY : `${KEY}-${id}`)
+
+function loadIndex() {
+  try {
+    const i = JSON.parse(localStorage.getItem(INDEX))
+    if (i?.kids?.length && i.kids.includes(i.active)) return i
+  } catch {
+    /* use the default */
+  }
+  return { active: 'main', kids: ['main'] }
+}
+
+const index = loadIndex()
+const [kids, setKids] = createSignal(index.kids)
+const [activeId, setActiveId] = createSignal(index.active)
+
+const saveIndex = () => {
+  try {
+    localStorage.setItem(INDEX, JSON.stringify({ active: activeId(), kids: kids() }))
+  } catch {
+    /* storage full or blocked */
+  }
+}
+
+export const [state, setState] = createStore(load(keyOf(index.active)))
 
 createRoot(() => {
   createEffect(() => {
     const json = JSON.stringify(state)
     try {
-      localStorage.setItem(KEY, json)
+      localStorage.setItem(keyOf(untrack(activeId)), json)
     } catch {
       /* storage full or blocked: nothing we can do */
     }
@@ -63,7 +91,7 @@ createRoot(() => {
 
 // Keep tabs in sync (eg. grown-up edits on another tab)
 window.addEventListener('storage', (e) => {
-  if (e.key === KEY && e.newValue) {
+  if (e.key === keyOf(activeId()) && e.newValue) {
     try {
       setState(reconcile(JSON.parse(e.newValue)))
     } catch {
@@ -71,6 +99,56 @@ window.addEventListener('storage', (e) => {
     }
   }
 })
+
+const readProfile = (id) => {
+  try {
+    return JSON.parse(localStorage.getItem(keyOf(id)))?.profile ?? {}
+  } catch {
+    return {}
+  }
+}
+
+/** Everyone on this device: [{ id, name, year, active }] */
+export const kidList = () =>
+  kids().map((id) => {
+    const active = id === activeId()
+    const p = active ? state.profile : readProfile(id)
+    return { id, name: p.name || 'New child', year: p.year, active }
+  })
+
+// One batch, so the save effect writes the new child's data to the new child's key
+function openKid(id, data) {
+  batch(() => {
+    setActiveId(id)
+    setState(reconcile(data))
+  })
+  saveIndex()
+}
+
+export function switchKid(id) {
+  if (id !== activeId() && kids().includes(id)) openKid(id, load(keyOf(id)))
+}
+
+/** Add an empty child and switch to them (the set-up screen shows next) */
+export function addKid() {
+  const id = Math.random().toString(36).slice(2, 8)
+  setKids([...kids(), id])
+  openKid(id, fresh())
+}
+
+/** Delete the current child's data. The last child can't be removed: reset instead. */
+export function removeKid() {
+  if (kids().length < 2) return resetAll()
+  const gone = activeId()
+  const rest = kids().filter((k) => k !== gone)
+  setKids(rest)
+  openKid(rest[0], load(keyOf(rest[0])))
+  try {
+    localStorage.removeItem(keyOf(gone))
+  } catch {
+    /* ignore */
+  }
+}
 
 // ---- derived helpers ------------------------------------------------------
 export const startLevel = (year) => [1, 1, 2, 2, 3, 4, 4][year] ?? 2
